@@ -3,16 +3,28 @@ import tkinter as tk
 from PIL import ImageTk, Image
 from serial import Serial
 from os import system
+import csv
 from requests import get, post
 from datetime import datetime, timedelta
+from utilitarios.dicionario import traduzir
+from reconhecimento.detector import tirar_foto,Detector_aws
 
 #Variáveis globais
-global imagem, path
+global imagem, path, data_foto
 global painel_foto, etiqueta_foto
-global palavra
+global palavra_traduzida
+global meu_serial
+
+data_foto = ''
 
 #Inicia serial
 #meu_serial = Serial("COM26", baudrate = 9600, timeout = 0.1)
+
+
+#Chave amozon
+with open('reconhecimento/Chave aws.csv','r') as credenciais:
+    next(credenciais)
+    chave,senha = list(csv.reader(credenciais))[0]
 
 #Criação da janela
 janela = tk.Tk()
@@ -33,27 +45,40 @@ janela_botoes2.place(x = 425, y = 121)
 
 #Botões
     #Janela
-janela_botoes = tk.Canvas(janela, background = "black", width = 123, height = 95)
+
+largura_externa_janela_botoes, largura_interna_janela_botoes= 123,111
+altura_externa_janela_botoes,altura_interna_janela_botoes = 95,85
+
+janela_botoes = tk.Canvas(janela, background = "black", width = largura_externa_janela_botoes,
+                           height = altura_externa_janela_botoes)
 janela_botoes.place(x = 420, y = 15)
-janela_botoes2 = tk.Canvas(janela, background = "grey93", width = 113, height = 85)
+janela_botoes2 = tk.Canvas(janela, background = "grey93", width = largura_interna_janela_botoes,
+                            height = altura_interna_janela_botoes)
 janela_botoes2.place(x = 425, y = 20)
 
     #Fotografar
-def tira_foto():
-    global imagem, path
+def fotografar():
+    global imagem, path,data_foto
     
         #captura imagem
-    data_foto = str(datetime.now()).replace(" ","-")
+    data_foto = datetime.now().strftime('Foto_teste_%d_%m_%y__%H:%M:%S')
     
-            #envia comando para o sistema
+
+    '''
+    #envia comando para o sistema
 #     comando_win = "CommandCam /filename " + data_foto + ".jpg /delay 500"
     comando_lin = "fswebcam --resolution 640x480 --skip 10 " + data_foto + ".jpg"
 #     system(comando_win)
     system(comando_lin)
+    '''
+
+    sistema_operacional = 'Linux'
+
+    tirar_foto(nome = data_foto,sistema_operacional = sistema_operacional)
     
     print("Tirei foto!")
     
-    path = data_foto + ".jpg"
+    path = f'{data_foto}.jpg'
 #     path = "foto_telegram.jpg"
     
         #abrir imagem
@@ -73,49 +98,40 @@ def tira_foto():
         #ativa botão de upload
     botao_upload['state'] = tk.NORMAL
 
-botao_fotografar = tk.Button(janela, text = "Fotografar", command = tira_foto)
-botao_fotografar.place(x = 450, y = 35)
+
+
+
+
+
 
     #Upload
 def envia_foto():
-    global etiqueta_foto, palavra
-    print("Enviando pros deuses")
+    global etiqueta_foto, palavra_traduzida, meu_serial
+    print("Enviando para a IA")
     
-        #enviar foto para o identificador
-            #dados da conversa
-    chave = "6296661403:AAFru8mD_bctyb56n4PkObmyVJXHhvSPkv4"
-    endereco_base = "https://api.telegram.org/bot" + chave
-    endereco_dados_do_bot = endereco_base + "/getMe"
-    id_da_conversa = "2040258692"    
-    endereco_para_foto = endereco_base + "/sendPhoto"
     
-            #envio
-    dados_envio = {"chat_id": id_da_conversa}
-    arquivo_envio = {"photo": open(path, "rb")}
-    resultado_envio = post(endereco_para_foto, data = dados_envio, files = arquivo_envio)
-    print(resultado_envio.text)
+    detector_amazon = Detector_aws(senha = senha,chave = chave)
+    nome_arquivo_foto = f'{data_foto}.jpg'
+    with open(nome_arquivo_foto,'rb') as imagem_fonte:
+        bytes_fonte = imagem_fonte.read()
     
-        #recebe json //só recebe uma vez, a cada upload
-    endereco_resposta = endereco_base + "/getUpdates"
-    dados_resposta = {"offset": proximo_id_de_update}
+    itens_detectados = detector_amazon.receber_dados(bytes_imagem = bytes_fonte,etiquetas = 8).get('Labels')
+
     
-    print("\nBuscando novas mensagens...")
-    resposta = get(endereco_resposta, json = dados_resposta)
-    dicionario_resposta = resposta.json()
+    palavra_maior_confianca = itens_detectados[0].get('Name')
+    palavra_traduzida = traduzir(texto=palavra_maior_confianca)
+
+
+    etiqueta_palavra = tk.Label(janela,text = palavra_traduzida,bg = 'grey93')
+    etiqueta_palavra.place(x = 450,y = 130)
+
     
-        #trata json //pega aprimeira mensagem de texto (deve ser uma palavra)
-    for resultado in dicionario_da_resposta["result"]:
-        mensagem = resultado["message"]
-        
-        if "text" in mensagem:
-            palavra = mensagem["text"]
-            
-        #envia a palavra para o arduino
-#     palavra_chave = palavra + "\n"
-#     meu_serial.write(palavra_chave.encode("UFT-8"))
-    
+        #envia palavra pro arduino
+    #palavra_traduzida += '\n'
+    #meu_serial.write(palavra_traduzida.encode("UTF-8"))
+
         #muda janela foto para o padão
-    imagem_grey = tk.PhotoImage("grey.jpg")
+    imagem_grey = tk.PhotoImage('cinza.jpg')
     painel_foto.config(image = imagem_grey, width = 400, height = 257)
     painel_foto.image = imagem_grey
     etiqueta_foto = tk.Label(janela, text = "Tire uma foto", fg = "white" , bg = "grey")
@@ -123,6 +139,10 @@ def envia_foto():
     
         #desativa botão de upload
     botao_upload['state'] = tk.DISABLED
+
+
+botao_fotografar = tk.Button(janela, text = "Fotografar",font = ('arial',8), command = fotografar)
+botao_fotografar.place(x = 450, y = 35)
 
 botao_upload = tk.Button(janela, text = "Upload", command = envia_foto, state = 'disabled')
 botao_upload.place(x = 457, y = 65)
