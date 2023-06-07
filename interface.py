@@ -45,7 +45,7 @@ def tira_foto():
         #captura imagem
     data_foto = str(datetime.now()).replace(" ","-")
     
-        #envia comando para o sistema
+            #envia comando para o sistema
 #     comando_win = "CommandCam /filename " + data_foto + ".jpg /delay 500"
     comando_lin = "fswebcam --resolution 640x480 --skip 10 " + data_foto + ".jpg"
 #     system(comando_win)
@@ -60,11 +60,11 @@ def tira_foto():
     imagem = Image.open(path)
     
         #redimenciona
-    redimencionada = imagem.resize((400, 255), Image.LANCZOS)
+    redimencionada = imagem.resize((400, 257), Image.LANCZOS)
         
         #projeta
     nova_imagem = ImageTk.PhotoImage(redimencionada)
-    painel_foto.config(image = nova_imagem, width = 400, height = 255)
+    painel_foto.config(image = nova_imagem, width = 400, height = 257)
     painel_foto.image = nova_imagem
     
         #destroi Label de texto
@@ -116,7 +116,7 @@ def envia_foto():
     
         #muda janela foto para o padão
     imagem_grey = tk.PhotoImage("grey.jpg")
-    painel_foto.config(image = imagem_grey, width = 400, height = 255)
+    painel_foto.config(image = imagem_grey, width = 400, height = 257)
     painel_foto.image = imagem_grey
     etiqueta_foto = tk.Label(janela, text = "Tire uma foto", fg = "white" , bg = "grey")
     etiqueta_foto.place(x = 176, y = 135)
@@ -136,21 +136,115 @@ etiqueta_braile.place(x = 15, y = 280)
 janela_braile = tk.Canvas(janela, background = "white", width = 525, height = 185)
 janela_braile.place(x = 10, y = 300)
 
-    #Bolas //engrenagem, coluna, bola, preta/branca
-e1c1b1p = tk.Canvas(janela, width = 20, height = 20)
-e1c1b1p.place(x = 20, y = 350)
-e1c1b1p.create_oval(100, 100, 300, 300)
+    #Função auxiliar
+def _create_circle(self, x, y, r, **kwargs):
+    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
+tk.Canvas.create_circle = _create_circle
 
-    #Importa braile
-
+    #Importa braile //apenas palavras com 4 letras
+# braile = meu_serial.readline().decode().strip()
+braile = "101110, 111110, 110101, 101101"
 
     #Trata braile //101}coluna 1, 110}coluna 2
-braile = "101110, 111110, 110101, 101101"
-#if braile:
+if braile:
+        #separa os digitos e transfoma para inteiro
+    dig1 = int(braile[0:6])
+    dig2 = int(braile[8:14])
+    dig3 = int(braile[16:-8])
+    dig4 = int(braile[-6:])
+        
+        #dicionário de digitos de dicionário de colunas de dicionário de bolas //cada bola diz seu estado 0 abaixada, 1 levantada
+    dicionario_braile = [('dig1',
+                          [('col1',
+                              [('bol1', int(dig1/100000)),
+                               ('bol2', int((dig1/10000))%10),
+                               ('bol3', int((dig1/1000))%10)]),
+                            ('col2',
+                             [('bol1', int((dig1/100))%10),
+                              ('bol2', int((dig1/10))%10),
+                              ('bol3', int(dig1%10))])]),
+                          
+                          ('dig2',
+                           [('col1',
+                             [('bol1', int(dig2/100000)),
+                              ('bol2', int((dig2/10000))%10),
+                              ('bol3', int((dig2/1000))%10)]),
+                            ('col2',
+                             [('bol1', int((dig2/100))%10),
+                              ('bol2', int((dig2/10))%10),
+                              ('bol3', int(dig2%10))])]),
+                          
+                          ('dig3',
+                           [('col1',
+                             [('bol1', int(dig3/100000)),
+                              ('bol2', int((dig3/10000))%10),
+                              ('bol3', int((dig3/1000))%10)]),
+                            ('col2',
+                             [('bol1', int((dig3/100))%10),
+                              ('bol2', int((dig3/10))%10),
+                              ('bol3', int(dig3%10))])]),
+                          
+                          ('dig4',
+                           [('col1',
+                             [('bol1', int(dig4/100000)),
+                              ('bol2', int((dig4/10000))%10),
+                              ('bol3', int((dig4/1000))%10)]),
+                            ('col2',
+                             [('bol1', int((dig4/100))%10),
+                              ('bol2', int((dig4/10))%10),
+                              ('bol3', int(dig4%10))])])]
     
+
+    #Desenho //fill = white -> 0/false, fill = black -> 1/true
+        #digito 1
+            #coluna 1
+janela_braile.create_circle(60, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(60, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(60, 145, 10, fill="white", outline="grey", width=2)
+
+            #coluna 2
+janela_braile.create_circle(110, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(110, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(110, 145, 10, fill="white", outline="grey", width=2)
+
+        #digito 2
+            #coluna 1
+janela_braile.create_circle(180, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(180, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(180, 145, 10, fill="white", outline="grey", width=2)
+
+            #coluna 2
+janela_braile.create_circle(230, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(230, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(230, 145, 10, fill="white", outline="grey", width=2)
+
+        #digito 3
+            #coluna 1
+janela_braile.create_circle(300, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(300, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(300, 145, 10, fill="white", outline="grey", width=2)
+
+            #coluna 2
+janela_braile.create_circle(350, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(350, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(350, 145, 10, fill="white", outline="grey", width=2)
+
+        #digito 4
+            #coluna 1
+janela_braile.create_circle(420, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(420, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(420, 145, 10, fill="white", outline="grey", width=2)
+
+            #coluna 2
+janela_braile.create_circle(470, 45, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(470, 95, 10, fill="white", outline="grey", width=2)
+janela_braile.create_circle(470, 145, 10, fill="white", outline="grey", width=2)
+
     #Exibe braile
 
-#Funções auxiliares
+
+
+
 
 
 janela.tk.mainloop()
