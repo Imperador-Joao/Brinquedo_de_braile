@@ -34,8 +34,9 @@ servoPos listaDeServos[] = {servoPos1, servoPos2, servoPos3, servoPos4, servoPos
 
 int braileTag = 0;  //Variavel para facilitar a correlacao de movimentos dos servos (1,2,3 ou 4)
 int braileStart = 0; //Referencial do começo do serial para substring.
-int braileEnd = 0;
 int i = 0;
+
+unsigned long instanteAnterior = 0;
 
 void setup() {
   // Inicializando a comunicacao serial.
@@ -94,14 +95,15 @@ void loop() {
     texto.trim();
 
     //Codificao Braile -> 1 = * e 0 = -
-
+    
     //Primeiro Exemplo de Serial recebido: 1001001 -> O primeiro digito informa qual dos caracter braile do mecanismo deve representar, os seguintes 6 digitos as duas colunas que devem ser combinadas
     //Segundo Exemplo de Serial recebido: 3011101 -> Informação para o 3o caracter Braile -> _ * * * _ *
 
-    if (texto.startsWith("1"))
+    if (texto.startsWith("Braile") && ((millis() - instanteAnterior) > 5000))
     {
-      braileTag = 1;
-      //Primeiro digito representa qual dos braile. A sequencia sempre começara com o 1 Braile
+      braileStart = 7;  //Indice inicial da sequencia Braile
+      braileTag = 1;    //braileTag representa o par de motores que compõe o caracter Braile
+      
       for (i = 0; i < texto.length() ; i++)
       {
         
@@ -113,22 +115,31 @@ void loop() {
         Serial.print(listaDeServos[2*(braileTag - 1)].posDes);
         Serial.print(",Servo 2:");
         Serial.println(listaDeServos[(2*braileTag) - 1)].posDes);
+                                               
                                                //Através das funcoes abaixo é possível correlacionar o indice da lista de servos com a braileTag
         movimentaServo(2*(braileTag - 1));     // 2*(1-1) = 0; 2*(2-1) = 2; 2*(3-1) = 4; 2*(4-1) = 6
         movimentaServo((2*braileTag) - 1));    // (2*1)-1 = 1; (2*2)-1 = 3; (2*3)-1 = 5; (2*4)-1 = 7
         
-        if (texto[i] == ',') //Exemplo: chegou no caracter 8 -> braileTag = 2
+        if (texto.charAt(i) == ',')                   //Exemplo: chegou no caracter 8 -> braileTag = 2
         {
-          braileTag = texto.substring(i+1); // Captura o digito logo após a virgula. Exemplo: 1001001,2001001 CAPTUROU O '2'
-          braileStart = i+2;                // Captura o indice do inicio do binario. Exemplo: 1001001,2001001 CAPTUROU O '0' 
+          braileStart = i+1;                   // Captura o digito logo após a virgula. Exemplo: Braile 001001,001001 CAPTUROU O '0'
+          if (braileTag == 4)
+          {
+            braileTag = 1;
+            instanteAnterior = millis();
+          }
+          else
+          {
+            braileTag++;
+          }
         }
       }
-
+      
     }
-    if (texto.startsWith("start"))
+    /*if (texto.startsWith("start"))
     {
       Serial.println("startando");
       movimentaServo(0);
-    }
+    }*/
   }
 }
