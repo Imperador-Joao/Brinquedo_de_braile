@@ -1,5 +1,5 @@
 from googletrans import Translator
-
+# Baixar versão 3.1.0a0
 
 LETRAS = [chr(i) for i in range(97,123)]
 LADO = {0:[0,0,0],
