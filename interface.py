@@ -176,9 +176,6 @@ def envia_foto():
     palavra_arduino += '"'
     
     print("=palavra="+palavra_arduino)
-#     palavra_arduino = '"' + palavra_traduzida + '","' + str(braile).replace('[', '').replace(']', '').replace(' ', '') + '"\n' REFAZER!!!
-#     print(palavra_arduino)
-#     meu_serial.write(palavra_arduino.encode("UTF-8"))
 
             #exibe brile
     preeche_braile()
