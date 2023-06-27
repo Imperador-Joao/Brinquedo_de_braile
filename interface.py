@@ -7,6 +7,7 @@ from requests import get, post
 from datetime import datetime, timedelta
 import csv
 from unidecode import unidecode
+import json
 from utilitarios.dicionario import traduzir, escrever_braile
 from reconhecimento.detector import tirar_foto, Detector_aws
 
@@ -15,10 +16,35 @@ global imagem, nome_arquivo_foto
 global painel_foto, estado_atual_palavra, etiqueta_palavra
 global braile, palavra_traduzida
 global meu_serial
-global lista_palavras
+global dicionario_palavras
 
-lista_palavras = ['Garrafa', 'Eletrônico', 'b', 'aaaaaaaaaaaaaaaaaaaa', 'aabaaaa', 'aaabaaaa', 'aaabaaa', 'aaabaaaaa']
+#Inicializa variáveis globais
+dicionario_palavras = {'palavras':[]}
+
+#Funções auxiliares
+    #Braile
+        #melhora função de desenhar circulo
+def _create_circle(self, x, y, r, **kwargs):
+    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
+tk.Canvas.create_circle = _create_circle
+
+    #Comunicação com o arduino
+        #trata palavra traduzida e braile pro arduino ex:"bala","100100,200220,300300,400400"
+def trata_palavra_braile(palavra, braile_palavra):
+    palavra_arduino = '"{}",'.format(palavra)
+    for lista_digito in braile_palavra:
+        for lista_coluna in lista_digito:
+            for bola in lista_coluna:
+                palavra_arduino += str(bola)
+                
+        palavra_arduino += ','
+
+    palavra_arduino += '"'
     
+    print("=palavra="+palavra_arduino)
+    
+    return palavra_arduino
+
 #Inicia serial
 #meu_serial = Serial("COM26", baudrate = 9600, timeout = 0.1)
 
@@ -31,6 +57,15 @@ if (stream.isOpened() == False):
 with open('reconhecimento/ChavesAcesso.csv','r') as credenciais:
     next(credenciais)
     chave,senha = list(csv.reader(credenciais))[0]
+
+#Abre o arquivo JSON
+try:
+    with open('utilitarios/palavras.json', 'r') as arquivo_json:
+    #Salva JSON no dicionário
+        dicionario_palavras = json.load(arquivo_json)
+            
+except IOError:
+    print("Arquivo JSON não encontrado")
 
 #Criação da janela
 janela = tk.Tk()
@@ -47,9 +82,11 @@ janela_estato_externa = tk.Canvas(janela, background = "black", width = 123, hei
 janela_estato_externa.place(x = 420, y = 116)
 janela_estato_interna = tk.Canvas(janela, background = "grey93", width = 113, height = 150)
 janela_estato_interna.place(x = 425, y = 121)
+
 janela_estato_interna.create_text(55, 35, text = "Palavra:", font = 1)
 estado_atual_palavra = tk.Label(janela, background = "grey93", text = "Fotografe!", font = 1)
 estado_atual_palavra.place(x = 440, y = 123)
+
 etiqueta_palavra = tk.Label(janela, text = "", bg = 'grey93')
 etiqueta_palavra.place(x = 455, y = 170)
 
@@ -59,27 +96,42 @@ janela_botoes_interno.place(x = 420, y = 15)
 janela_botoes_externo = tk.Canvas(janela, background = "grey93", width = 113, height = 85)
 janela_botoes_externo.place(x = 425, y = 20)
 
+    #Braile
+janela_braile_externa = tk.Canvas(janela, background = "black", width = 885, height = 76)
+janela_braile_externa.place(x = 10, y = 282)
+janela_braile_interna = tk.Canvas(janela, background = "grey93", width = 875, height = 66)
+janela_braile_interna.place(x = 15, y = 287)
+
     #Listbox
 lb_palavras = tk.Listbox(janela, bd = 4, width = 22, height = 13, justify = tk.CENTER)
-for palavra in lista_palavras:
+
+for palavra in dicionario_palavras['palavras']:
     lb_palavras.insert(tk.END, palavra)
+    
 lb_palavras.place(x = 548, y = 16)
 
 #Botões
     #Funções
         #Adiciona palavra na lista
 def adiciona_palavra_lista():
-    global lista_palavras
+    global dicionario_palavras
 
             #pega palavara
     palavra_adicionada = entrada_nova_palavra.get()
     
             #adiciona na interface
     lb_palavras.insert(tk.END, palavra_adicionada)
+            
+            #limpa janela de entrada
+    entrada_nova_palavra.delete(0,tk.END)
     
             #adiciona na lista
-    lista_palavras.append(str(palavra_adicionada))
-    print(lista_palavras)
+    dicionario_palavras['palavras'].append(unidecode(str(palavra_adicionada)))
+    print(dicionario_palavras)
+            
+            #adiciona no JSON
+    with open('utilitarios/palavras.json', 'w') as arquivo_json:
+        json.dump(dicionario_palavras, arquivo_json)
     
         #Traduzir palavra da lista
 def traduzir_palavra_lista():
@@ -97,21 +149,31 @@ def traduzir_palavra_lista():
     
         #Deletar palavra da lista
 def deletar_palavra_lista():
-    global lista_palavras
+    global dicionario_palavras, arquivo_json
+            
+            #pega palavara
+    palavra_selecionada = lb_palavras.get(tk.ACTIVE)
     
             #deleta palavra selecionada
-    lb_palavras.delete(tk.ACTIVE)
+    lb_palavras.delete(tk.ANCHOR)
     
+    print("AQUI", palavra_selecionada)
             #retira da lista
-    lista_palavras.remove(str(lb_palavras.get(tk.ACTIVE)))
-    print("==removido=="+str(lista_palavras))
+    indice = dicionario_palavras['palavras'].index(palavra_selecionada)
+    print("AQUI2", dicionario_palavras['palavras'],indice)
+    dicionario_palavras['palavras'].pop(indice)
+    print("==removido=="+str(dicionario_palavras))
+    
+            #retira do JSON
+    with open('utilitarios/palavras.json', 'w') as arquivo_json:
+        json.dump(dicionario_palavras, arquivo_json)
 
         #Envia string de palavras para salvar no arduino
 def salva_arduino():
     global meu_serial, braile, palavra_traduzida
         
             #envia sinal para o arduino
-#     meu_serial.write("1Salva")
+#     meu_serial.write("1Salva"+)
     
         #Fotografar
 def fotografar():
@@ -159,24 +221,14 @@ def envia_foto():
     
                 #pt-br -> braile
     braile = escrever_braile(unidecode(palavra_traduzida))
-    print(braile)
+    
             #exibe palavra traduzida
     etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey93')
     etiqueta_palavra.place(x = 435, y = 165)
-
-            #envia palavra traduzida e braile pro arduino "bala","100100,200220,300300,400400"
-    palavra_arduino = '"{}",'.format(palavra_traduzida)
-    for lista_digito in braile:
-        for lista_coluna in lista_digito:
-            for bola in lista_coluna:
-                palavra_arduino += str(bola)
-                
-        palavra_arduino += ','
-
-    palavra_arduino += '"'
+            
+            #envia para o arduino
+#     meu_seria.write(trata_palavra_braile(unidecode(palavra_traduzida), braile))
     
-    print("=palavra="+palavra_arduino)
-
             #exibe brile
     preeche_braile()
     
@@ -201,7 +253,7 @@ botao_adicionar = tk.Button(janela, text = "Adicionar", command = adiciona_palav
 botao_adicionar.place(x = 453, y = 230)
 
             #Entrada
-entrada_nova_palavra = tk.Entry(janela,text = "Palavra de 12 letras", width = 18)
+entrada_nova_palavra = tk.Entry(janela, width = 18)
 entrada_nova_palavra.place(x = 427, y = 205)
 
         #Traduzir
@@ -217,17 +269,6 @@ botao_salvar = tk.Button(janela, text = "Salvar", command = salva_arduino)
 botao_salvar.place(x = 462, y = 80)
 
 #Braile
-    #Janela
-janela_braile_externa = tk.Canvas(janela, background = "black", width = 885, height = 76)
-janela_braile_externa.place(x = 10, y = 282)
-janela_braile_interna = tk.Canvas(janela, background = "grey93", width = 875, height = 66)
-janela_braile_interna.place(x = 15, y = 287)
-
-    #Função auxiliar
-def _create_circle(self, x, y, r, **kwargs):
-    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
-tk.Canvas.create_circle = _create_circle
-
     #Desenho da estrutura do braile
     #//fill = white -> 0/false, fill = black -> 1/true
 def desenha_braile():
