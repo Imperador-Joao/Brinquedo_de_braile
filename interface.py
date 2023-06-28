@@ -13,7 +13,7 @@ from reconhecimento.detector import tirar_foto, Detector_aws
 
 #Variáveis globais
 global imagem, nome_arquivo_foto
-global painel_foto, estado_atual_palavra, etiqueta_palavra
+global painel_foto_interno, estado_atual_palavra, etiqueta_palavra
 global braile, palavra_traduzida
 global meu_serial
 global dicionario_palavras
@@ -29,24 +29,25 @@ def _create_circle(self, x, y, r, **kwargs):
 tk.Canvas.create_circle = _create_circle
 
     #Comunicação com o arduino
-        #trata palavra traduzida e braile pro arduino ex:"bala","100100,200220,300300,400400"
-def trata_palavra_braile(palavra, braile_palavra):
-    palavra_arduino = '"{}",'.format(palavra)
+        #trata palavra traduzida e braile pro arduino ex:'bala','100100,200220,300300,400400'
+def formata_palavra_braile(palavra, braile_palavra):
+    formatacao = "'{}','".format(palavra)
     for lista_digito in braile_palavra:
         for lista_coluna in lista_digito:
             for bola in lista_coluna:
-                palavra_arduino += str(bola)
+                formatacao += str(bola)
                 
-        palavra_arduino += ','
-
-    palavra_arduino += '"'
+        formatacao += ","
     
-    print("=palavra="+palavra_arduino)
+    formatacao = formatacao[:-1]
+    formatacao += "'"
     
-    return palavra_arduino
+    print("=palavra="+formatacao)
+    
+    return formatacao
 
 #Inicia serial
-#meu_serial = Serial("COM26", baudrate = 9600, timeout = 0.1)
+meu_serial = Serial("COM4", baudrate = 115200, timeout = 0.1)
 
 #Inicia vídeo
 stream = cv.VideoCapture(0)
@@ -74,16 +75,18 @@ janela.geometry("908x376")
 
 #Janelas
     #Foto
-painel_foto = tk.Label(janela, background = "grey", width = 57, height = 17)
-painel_foto.place(x = 12, y = 17)
+painel_foto_externo = tk.Label(janela, background = "black", width = 57, height = 17)
+painel_foto_externo.place(x = 12, y = 17)
+painel_foto_interno = tk.Label(janela, width = 54, height = 14)
+painel_foto_interno.place(x = 15, y = 20)
 
     #Estato
-janela_estato_externa = tk.Canvas(janela, background = "black", width = 123, height = 160)
-janela_estato_externa.place(x = 420, y = 116)
-janela_estato_interna = tk.Canvas(janela, background = "grey93", width = 113, height = 150)
-janela_estato_interna.place(x = 425, y = 121)
+janela_estato_externo = tk.Canvas(janela, background = "black", width = 123, height = 160)
+janela_estato_externo.place(x = 420, y = 116)
+janela_estato_interno = tk.Canvas(janela, background = "grey93", width = 113, height = 150)
+janela_estato_interno.place(x = 425, y = 121)
 
-janela_estato_interna.create_text(55, 35, text = "Palavra:", font = 1)
+janela_estato_interno.create_text(55, 35, text = "Palavra:", font = 1)
 estado_atual_palavra = tk.Label(janela, background = "grey93", text = "Fotografe!", font = 1)
 estado_atual_palavra.place(x = 440, y = 123)
 
@@ -97,10 +100,10 @@ janela_botoes_externo = tk.Canvas(janela, background = "grey93", width = 113, he
 janela_botoes_externo.place(x = 425, y = 20)
 
     #Braile
-janela_braile_externa = tk.Canvas(janela, background = "black", width = 885, height = 76)
-janela_braile_externa.place(x = 10, y = 282)
-janela_braile_interna = tk.Canvas(janela, background = "grey93", width = 875, height = 66)
-janela_braile_interna.place(x = 15, y = 287)
+janela_braile_externo = tk.Canvas(janela, background = "black", width = 885, height = 76)
+janela_braile_externo.place(x = 10, y = 282)
+janela_braile_interno = tk.Canvas(janela, background = "grey93", width = 875, height = 66)
+janela_braile_interno.place(x = 15, y = 287)
 
     #Listbox
 lb_palavras = tk.Listbox(janela, bd = 4, width = 22, height = 13, justify = tk.CENTER)
@@ -157,10 +160,8 @@ def deletar_palavra_lista():
             #deleta palavra selecionada
     lb_palavras.delete(tk.ANCHOR)
     
-    print("AQUI", palavra_selecionada)
             #retira da lista
     indice = dicionario_palavras['palavras'].index(palavra_selecionada)
-    print("AQUI2", dicionario_palavras['palavras'],indice)
     dicionario_palavras['palavras'].pop(indice)
     print("==removido=="+str(dicionario_palavras))
     
@@ -168,12 +169,18 @@ def deletar_palavra_lista():
     with open('utilitarios/palavras.json', 'w') as arquivo_json:
         json.dump(dicionario_palavras, arquivo_json)
 
-        #Envia string de palavras para salvar no arduino
-def salva_arduino():
-    global meu_serial, braile, palavra_traduzida
+        #Envia lista de palavras para salvar no arduino
+def envia_lista_arduino():
+    global meu_serial, dicionario_palavras
+            #cria identificador de lista
+    lista_arduino = "lista," + str(len(dicionario_palavras['palavras'])) + "\n"
+            #adiciona cada palavras e seu respectivo braile à variável
+    for palavra in dicionario_palavras['palavras']:
+        lista_arduino += "," + formata_palavra_braile(palavra, escrever_braile(unidecode(palavra))) + "\n"
         
             #envia sinal para o arduino
-#     meu_serial.write("1Salva"+)
+    meu_serial.write(lista_arduino.encode("UTF-8"))
+    print(lista_arduino)
     
         #Fotografar
 def fotografar():
@@ -206,7 +213,7 @@ def envia_foto():
     
             #enviar foto para o identificador da amazon
     detector_amazon = Detector_aws(senha = senha, chave = chave)
-    with open(nome_arquivo_foto,'rb') as imagem_fonte:
+    with open("Fotos/"+nome_arquivo_foto,'rb') as imagem_fonte:
         bytes_fonte = imagem_fonte.read()
     
             #recebe itens detectados
@@ -227,7 +234,8 @@ def envia_foto():
     etiqueta_palavra.place(x = 435, y = 165)
             
             #envia para o arduino
-#     meu_seria.write(trata_palavra_braile(unidecode(palavra_traduzida), braile))
+    palavra_arduino = "foto,\n" + formata_palavra_braile(unidecode(palavra_traduzida), braile)
+    meu_serial.write(palavra_arduino.encode("UTF-8"))
     
             #exibe brile
     preeche_braile()
@@ -252,7 +260,7 @@ botao_upload.place(x = 462, y = 51)
 botao_adicionar = tk.Button(janela, text = "Adicionar", command = adiciona_palavra_lista)
 botao_adicionar.place(x = 453, y = 230)
 
-            #Entrada
+            #Entrada de texto
 entrada_nova_palavra = tk.Entry(janela, width = 18)
 entrada_nova_palavra.place(x = 427, y = 205)
 
@@ -265,7 +273,7 @@ botao_traduzir = tk.Button(janela, text = "Deletar", command = deletar_palavra_l
 botao_traduzir.place(x = 625, y = 245)
 
         #Salvar
-botao_salvar = tk.Button(janela, text = "Salvar", command = salva_arduino)
+botao_salvar = tk.Button(janela, text = "Salvar", command = envia_lista_arduino)
 botao_salvar.place(x = 462, y = 80)
 
 #Braile
@@ -284,19 +292,19 @@ def desenha_braile():
     digito = 0
     
     #"apaga" digitos anteriores
-    janela_braile_interna.create_rectangle(18, 54, 18+845, 54+12, fill = "grey93", outline = "grey93")
+    janela_braile_interno.create_rectangle(18, 54, 18+845, 54+12, fill = "grey93", outline = "grey93")
     
     while digito < 20:
             #digito n
                 #coluna 1
-        janela_braile_interna.create_circle(x_coluna1+distancia_digito*digito, y1, 4, fill = "grey93", outline = "grey", width = 1)
-        janela_braile_interna.create_circle(x_coluna1+distancia_digito*digito, y2, 4, fill = "grey93", outline = "grey", width = 1)
-        janela_braile_interna.create_circle(x_coluna1+distancia_digito*digito, y3, 4, fill = "grey93", outline = "grey", width = 1)
+        janela_braile_interno.create_circle(x_coluna1+distancia_digito*digito, y1, 4, fill = "grey93", outline = "grey", width = 1)
+        janela_braile_interno.create_circle(x_coluna1+distancia_digito*digito, y2, 4, fill = "grey93", outline = "grey", width = 1)
+        janela_braile_interno.create_circle(x_coluna1+distancia_digito*digito, y3, 4, fill = "grey93", outline = "grey", width = 1)
 
                 #coluna 2
-        janela_braile_interna.create_circle(x_coluna2+distancia_digito*digito, y1, 4, fill = "grey93", outline = "grey", width = 1)
-        janela_braile_interna.create_circle(x_coluna2+distancia_digito*digito, y2, 4, fill = "grey93", outline = "grey", width = 1)
-        janela_braile_interna.create_circle(x_coluna2+distancia_digito*digito, y3, 4, fill = "grey93", outline = "grey", width = 1)
+        janela_braile_interno.create_circle(x_coluna2+distancia_digito*digito, y1, 4, fill = "grey93", outline = "grey", width = 1)
+        janela_braile_interno.create_circle(x_coluna2+distancia_digito*digito, y2, 4, fill = "grey93", outline = "grey", width = 1)
+        janela_braile_interno.create_circle(x_coluna2+distancia_digito*digito, y3, 4, fill = "grey93", outline = "grey", width = 1)
                 
         digito += 1
 
@@ -332,13 +340,13 @@ def preeche_braile():
                 while bola < 3:
                     if braile[digito][coluna][bola] == 1:
                         if bola == 0: #desenha bola do topo
-                            janela_braile_interna.create_circle(x_coluna1+distancia_digito*digito, y1, 4, fill = "black", outline = "grey", width = 1)
+                            janela_braile_interno.create_circle(x_coluna1+distancia_digito*digito, y1, 4, fill = "black", outline = "grey", width = 1)
 
                         elif bola == 1: #desenha bola do meio
-                            janela_braile_interna.create_circle(x_coluna1+distancia_digito*digito, y2, 4, fill = "black", outline = "grey", width = 1)
+                            janela_braile_interno.create_circle(x_coluna1+distancia_digito*digito, y2, 4, fill = "black", outline = "grey", width = 1)
 
                         else: #desenha bola de baixo
-                            janela_braile_interna.create_circle(x_coluna1+distancia_digito*digito, y3, 4, fill = "black", outline = "grey", width = 1)
+                            janela_braile_interno.create_circle(x_coluna1+distancia_digito*digito, y3, 4, fill = "black", outline = "grey", width = 1)
 
                     bola += 1
                         
@@ -346,20 +354,20 @@ def preeche_braile():
                 while bola < 3:
                     if braile[digito][coluna][bola] == 1:
                         if bola == 0: #desenha bola do topo
-                            janela_braile_interna.create_circle(x_coluna2+distancia_digito*digito, y1, 4, fill = "black", outline = "grey", width = 1)
+                            janela_braile_interno.create_circle(x_coluna2+distancia_digito*digito, y1, 4, fill = "black", outline = "grey", width = 1)
                                 
                         elif bola == 1: #desenha bola do meio
-                            janela_braile_interna.create_circle(x_coluna2+distancia_digito*digito, y2, 4, fill = "black", outline = "grey", width = 1)
+                            janela_braile_interno.create_circle(x_coluna2+distancia_digito*digito, y2, 4, fill = "black", outline = "grey", width = 1)
 
                         else: #desenha bola de baixo
-                            janela_braile_interna.create_circle(x_coluna2+distancia_digito*digito, y3, 4, fill = "black", outline = "grey", width = 1)
+                            janela_braile_interno.create_circle(x_coluna2+distancia_digito*digito, y3, 4, fill = "black", outline = "grey", width = 1)
 
                     bola += 1
                     
             coluna += 1
             bola = 0
         
-        janela_braile_interna.create_text(x_coluna1+8+distancia_digito*digito, y3+15, text = palavra_traduzida[digito])
+        janela_braile_interno.create_text(x_coluna1+8+distancia_digito*digito, y3+15, text = palavra_traduzida[digito])
         digito += 1
         coluna = 0
         bola = 0
@@ -370,8 +378,8 @@ while True:
     video = cv.flip(video, 1)
     video_tratado = cv.cvtColor(video, cv.COLOR_BGR2RGB)
     video = ImageTk.PhotoImage(Image.fromarray(video_tratado))
-    painel_foto.config(image = video, width = 400, height = 257)
-    painel_foto.image = video
+    painel_foto_interno.config(image = video, width = 395, height = 251)
+    painel_foto_interno.image = video
     janela.update()
     
 stream.release()
