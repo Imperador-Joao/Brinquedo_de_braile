@@ -2,6 +2,7 @@
 #include "SoftwareSerial.h"
 #include "DFRobotDFPlayerMini.h"
 #include <GFButton.h>
+#include <ShiftDisplay.h>
 
 
 GFButton botao1(A8);
@@ -16,10 +17,16 @@ int indiceLetraGlobal = 0;
 int potenciometroVolume = A7;
 int volume;
 
+int rclk = 12;
+int sclk = 11;
+int dio = 10;
+int indicesDisplay[] = { 3, 2, 1, 0 };
+
 unsigned long tempoAnteriorSensor;
 
 String texto;
 DFRobotDFPlayerMini myDFPlayer;
+ShiftDisplay display(rclk, sclk, dio, COMMON_ANODE, 4, true, indicesDisplay);
 
 
 
@@ -67,6 +74,8 @@ void loop() {
     texto.trim();
     indiceLetraGlobal = 0;
   }
+  display.set(texto.substring(indiceLetraGlobal));
+  display.update();
 }
 
 void funcaoBotao1(GFButton& botaoDoEvento) {
