@@ -5,7 +5,7 @@
 
 #include <Servo.h>
 #include <GFButton.h>
-//#include <LinkedList.h>
+#include <LinkedList.h>
 
 // Botoes
 GFButton botao1(A1);
@@ -37,7 +37,7 @@ servoPos servoPos8;
 
 servoPos listaDeServos[] = {servoPos1, servoPos2, servoPos3, servoPos4, servoPos5, servoPos6, servoPos7, servoPos8};
 //20 palavras
-sorteioPalavras listaDeSorteios[] = 
+sorteioPalavras *listaDeSorteios; /*= 
   {
   {"Batata", "110000,100000,011110,100000,011110,100000"},
   {"TV", "011110,111001"},
@@ -60,7 +60,7 @@ sorteioPalavras listaDeSorteios[] =
   {"Passaro", "111100,100000,011100,011100,100000,111010,101010"}, // P A S S A R O
   {"Tinta", "011110,010100,101110,011110,100000"},// T I N T A
   };
-
+*/
 int braileTag = 0;  //Variavel para facilitar a correlacao de movimentos dos servos (1,2,3 ou 4)
 int braileStart = 0; //Referencial do começo do serial para substring.
 int i = 0;
@@ -84,10 +84,17 @@ boolean takeLowTime;
 int pirPin = 3;    //the digital pin connected to the PIR sensor's output
 int ledPin = 13;
 
+bool eLista = false;
+bool eFoto = false;
+
+int posicaoLista = 0;
+int qtd_palavras = 0;
+
 void setup() 
 {
   // Inicializando a comunicacao serial.
   Serial.begin(9600);
+  Serial1.begin(115200);
 
   randomSeed(analogRead(A0)); // Inicializa elemento aleatório
   botao1.setReleaseHandler(sorteia);
@@ -205,10 +212,9 @@ void leituraDeComando(String texto)
 void loop() 
 {
   botao1.process();
-  
-  if (Serial.available() > 0)
-  {
-    String texto = Serial.readStringUntil('\n');
+  if (Serial1.available() > 0)
+  { 
+    String texto = Serial1.readStringUntil('\n');
     texto.trim();
 
     //Codificao Braile -> 1 = * e 0 = -
@@ -217,11 +223,48 @@ void loop()
     //Primeiro Exemplo de Serial recebido: 1001001 -> O primeiro digito informa qual dos caracter braile do mecanismo deve representar, os seguintes 6 digitos as duas colunas que devem ser combinadas
     //Segundo Exemplo de Serial recebido: 3011101 -> Informação para o 3o caracter Braile -> _ * * * _ *
 
-    if (texto.startsWith("Braile"))
-    {
-      leituraDeComando(texto);
+/*
+Identifica string recebida
+  primeiro vai receber "foto" ou "lista,num"
+  vai verificar se as flags estão ativas(não de veriam estar), depois detecta na texto se é foto ou lista e torna ativa a sua respectiva flag
 
+  segundo vai receber uma palavra seguida do seu braile, a unica respectiva à foto e a primeira respecvica à lista
+  então vai entrar no seu respectivo if
+*/
+    if (eFoto)
+    {
+      String palavra = texto.substring(1,indexVirgula-1);
+      leituraDeComando(texto);
+      eFoto = false;
     }
+
+    if (eLista)
+    {
+      if (posicaoLista < qtd_palavras)
+      {
+        int indexVirgula = texto.indexOf(",");
+        listaDeSorteios[posicaoLista].palavra = texto.substring(1,indexVirgula-1);
+        texto = texto.substring(indexVirgula);
+        listaDeSorteios[posicaoLista].braile = texto.substring(2,texto.indexOf("',"));
+        posicaoLista++;
+      }
+      
+      else
+      {
+        eLista = false;
+        posicaoLista = 0;
+      }
+    }
+   
+    if (texto.startsWith("foto")) eFoto = true;
+    
+    if (texto.startsWith("lista"))
+    {
+      qtd_palavras = texto.substring(6,7).toInt();
+      listaDeSorteios = (sorteioPalavras*)malloc(sizeof(sorteioPalavras)*qtd_palavras);
+      eLista = true;
+    }
+    
     /*if (texto.startsWith("start"))
     {
       Serial.println("startando");
