@@ -5,6 +5,8 @@
 #include <ShiftDisplay.h>
 
 
+GFButton botaoPalavras(A2);
+
 GFButton botao1(A8);
 GFButton botao2(A9);
 GFButton botao3(A10);
@@ -17,9 +19,9 @@ int indiceLetraGlobal = 0;
 int potenciometroVolume = A7;
 int volume;
 
-int rclk = 12;
-int sclk = 11;
-int dio = 10;
+int rclk = 4;
+int sclk = 3;
+int dio = 2;
 int indicesDisplay[] = { 3, 2, 1, 0 };
 
 unsigned long tempoAnteriorSensor;
@@ -29,6 +31,17 @@ DFRobotDFPlayerMini myDFPlayer;
 ShiftDisplay display(rclk, sclk, dio, COMMON_ANODE, 4, true, indicesDisplay);
 
 
+String listaDeSorteios[66] = { "Brazino", "JogoDaGalera", "Garrafa", "Cloroformio",
+                             "Maconha", "Cocaina","Crack","XVideos","PornoDeCavalo",
+                             "Fuzil","Empalamento","Microondas","Guilhotina","Pistola",
+                             "Drogas","Ecstasy","Paralelepipedo","Pseudociencia","Criacionismo",
+                             "TerraPlana","MDMA","Jeanderson","Parnasianismo","Realismo","MarxismoLeninismo",
+                             "Comunismo","Arnarquia","Anarcocapitalismo","Neoliberalismo","Fascismo","Suastica",
+                             "Marreta","Catavento","NaziBom","NaziMorto","Submarino","LojasAmericas","VascoDaGama",
+                             "ClubeDeRegatasDoFlamengo","Gabigordo","OutroPatamar","Jesus","Deus","Capeta","OlavoDeCarvalho",
+                             "JairInelegivel","Mussolini","GTAVI","GTASandalias","Minecraft","WelcomeToTheMato","Boquetaxi",
+                             "Oral","Anal","Necrofilia","AsfixiaAutoerotica","Autoescola","DETRANRJ","Exame","Aprovacao","Reprovacao",
+                             "CMM","Meggiolaro","EngMec","Giorgio","DaftPunk"};
 
 void setup() {
   // put your setup code here, to run once:
@@ -37,6 +50,8 @@ void setup() {
   Serial.begin(115200);
   Serial1.begin(9600);
 
+  randomSeed(analogRead(A0));
+  botaoPalavras.setReleaseHandler(sortearPalavras);
 
   botao1.setReleaseHandler(funcaoBotao1);
   botao2.setReleaseHandler(funcaoBotao2);
@@ -45,7 +60,6 @@ void setup() {
 
   sensor.setReleaseHandler(funcaoSensor);
   //SoftwareSerial mySoftwareSerial(19, 18); // RX, TX
-  //mySoftwareSerial.begin(9600);
 
   if (!myDFPlayer.begin(Serial1)) {
     Serial.println(F("Nao inicializado:"));
@@ -58,6 +72,8 @@ void setup() {
 }
 
 void loop() {
+
+  botaoPalavras.process();
 
   botao1.process();
   botao2.process();
@@ -72,10 +88,21 @@ void loop() {
   if (Serial.available()) {
     texto = Serial.readStringUntil('\n');
     texto.trim();
+    Serial.println(texto);
     indiceLetraGlobal = 0;
   }
   display.set(texto.substring(indiceLetraGlobal));
   display.update();
+}
+
+
+void sortearPalavras(GFButton& botaoDoEvento) {
+  int posicaoAleatoria = random(66);
+  texto = listaDeSorteios[posicaoAleatoria];
+  indiceLetraGlobal = 0;
+  Serial.println(texto);
+
+  
 }
 
 void funcaoBotao1(GFButton& botaoDoEvento) {
@@ -128,6 +155,8 @@ void funcaoSensor(GFButton& botaoDoEvento) {
     indiceLetraGlobal += 4;
     tempoAnteriorSensor = millis();
     Serial.println("Avançou");
-    
+    if (indiceLetraGlobal >= texto.length()){
+      indiceLetraGlobal = 0;
+    }
   }
 }
