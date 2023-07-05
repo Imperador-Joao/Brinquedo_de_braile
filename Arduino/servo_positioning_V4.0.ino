@@ -10,7 +10,6 @@
 #include <ShiftDisplay.h>
 #include "SoftwareSerial.h"
 
-
 // Botoes
 GFButton botaoPalavras(A1);
 
@@ -33,7 +32,9 @@ int indicesDisplay[] = { 3, 2, 1, 0 };
 
 unsigned long tempoAnteriorSensor;
 
-String texto;
+String saveText = "";
+String textoDisplay = "";
+
 DFRobotDFPlayerMini myDFPlayer;
 ShiftDisplay display(rclk, sclk, dio, COMMON_ANODE, 4, true, indicesDisplay);
 
@@ -173,10 +174,7 @@ void setup()
   } else {
     Serial.println(F("Inicializado com sucesso:"));
     myDFPlayer.volume(19);
-  }
-  
-  
-  
+  }  
 }
 
 int binToDec(String binario) {
@@ -243,10 +241,13 @@ void sorteia(GFButton &botaoPalavras) {
   Serial.println(listaDeSorteios[randomNumber].palavra);
   String message = String("Braile ") + String(listaDeSorteios[randomNumber].braile);
   Serial.println(message);
-  leituraDeComando((String)listaDeSorteios[randomNumber].braile);
+  leituraDeComando((String)(listaDeSorteios[randomNumber].braile));
+  saveText = (String)(listaDeSorteios[randomNumber].palavra);
+  textoDisplay = saveText;
+  Serial.println("palavrasroteada++++");
+  Serial.println(saveText);
+
 }
-
-
 
 void leituraDeComando(String texto) {
   braileStart = 0;  //Indice inicial da sequencia Braile
@@ -390,51 +391,52 @@ void loop() {
       leituraDeComando(allServos_Zero);
     }
   }
-  display.set(texto.substring(indiceLetraGlobal));
+  
+  display.set(textoDisplay);
   display.update();
 }
 
 void funcaoBotao1(GFButton& botaoDoEvento) {
   int indiceLocal = indiceLetraGlobal;
 
-  if (indiceLocal < texto.length()) {
+  if (indiceLocal < saveText.length()) {
 
-    int posicaoLetra = tolower(texto.charAt(indiceLocal)) - 96;
+    int posicaoLetra = tolower(saveText.charAt(indiceLocal)) - 96;
     myDFPlayer.play(posicaoLetra);
-    Serial.println(texto.substring(indiceLocal, indiceLocal + 1));
+    Serial.println(saveText.substring(indiceLocal, indiceLocal + 1));
   }
 }
 
 void funcaoBotao2(GFButton& botaoDoEvento) {
   int indiceLocal = indiceLetraGlobal + 1;
 
-  if (indiceLocal < texto.length()) {
+  if (indiceLocal < saveText.length()) {
 
-    int posicaoLetra = tolower(texto.charAt(indiceLocal)) - 96;
+    int posicaoLetra = tolower(saveText.charAt(indiceLocal)) - 96;
     myDFPlayer.play(posicaoLetra);
-    Serial.println(texto.substring(indiceLocal, indiceLocal + 1));
+    Serial.println(saveText.substring(indiceLocal, indiceLocal + 1));
   }
 }
 
 void funcaoBotao3(GFButton& botaoDoEvento) {
   int indiceLocal = indiceLetraGlobal + 2;
 
-  if (indiceLocal < texto.length()) {
+  if (indiceLocal < saveText.length()) {
 
-    int posicaoLetra = tolower(texto.charAt(indiceLocal)) - 96;
+    int posicaoLetra = tolower(saveText.charAt(indiceLocal)) - 96;
     myDFPlayer.play(posicaoLetra);
-    Serial.println(texto.substring(indiceLocal, indiceLocal + 1));
+    Serial.println(saveText.substring(indiceLocal, indiceLocal + 1));
   }
 }
 
 void funcaoBotao4(GFButton& botaoDoEvento) {
   int indiceLocal = indiceLetraGlobal + 3;
 
-  if (indiceLocal < texto.length()) {
+  if (indiceLocal < saveText.length()) {
 
-    int posicaoLetra = tolower(texto.charAt(indiceLocal)) - 96;
+    int posicaoLetra = tolower(saveText.charAt(indiceLocal)) - 96;
     myDFPlayer.play(posicaoLetra);
-    Serial.println(texto.substring(indiceLocal, indiceLocal + 1));
+    Serial.println(saveText.substring(indiceLocal, indiceLocal + 1));
   }
 }
 
@@ -443,9 +445,12 @@ void funcaoSensor(GFButton& botaoDoEvento) {
   if (tempoAtual - tempoAnteriorSensor > 3500) {
     indiceLetraGlobal += 4;
     tempoAnteriorSensor = millis();
+    textoDisplay = saveText.substring(indiceLetraGlobal);
     Serial.println("Avançou");
-    if (indiceLetraGlobal >= texto.length()){
+    Serial.println(saveText);
+    if (indiceLetraGlobal >= saveText.length()){
       indiceLetraGlobal = 0;
+      textoDisplay = saveText;
     }
   }
 }
