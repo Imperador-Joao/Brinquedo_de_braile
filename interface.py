@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 import csv
 from unidecode import unidecode
 import json
+from threading import Thread
+from time import sleep
 from utilitarios.dicionario import traduzir, escrever_braile
 from reconhecimento.detector import tirar_foto, Detector_aws
 
@@ -46,8 +48,21 @@ def formata_palavra_braile(palavra, braile_palavra):
     
     return formatacao
 
+def monitorar_serial():
+    while True:
+        if meu_serial != None:
+            texto_recebido = meu_serial.readline().decode().strip()
+            if texto_recebido != "":
+                print("Retorno Serial:", texto_recebido)
+    
+        sleep(0.1)
+
 #Inicia serial
-meu_serial = Serial("COM4", baudrate = 115200, timeout = 0.1)
+meu_serial = Serial("COM22", baudrate = 115200, timeout = 0.1)
+
+thread = Thread(target = monitorar_serial)
+thread.daemon = True
+thread.start()
 
 #Inicia vídeo
 stream = cv.VideoCapture(0)
@@ -106,7 +121,7 @@ janela_braile_interno = tk.Canvas(janela, background = "grey93", width = 875, he
 janela_braile_interno.place(x = 15, y = 287)
 
     #Listbox
-lb_palavras = tk.Listbox(janela, bd = 4, width = 22, height = 13, justify = tk.CENTER)
+lb_palavras = tk.Listbox(janela, bd = 4, width = 24, height = 13, justify = tk.CENTER)
 
 for palavra in dicionario_palavras['palavras']:
     lb_palavras.insert(tk.END, palavra)
@@ -174,13 +189,13 @@ def envia_lista_arduino():
     global meu_serial, dicionario_palavras
             #cria identificador de lista
     lista_arduino = "lista," + str(len(dicionario_palavras['palavras'])) + "\n"
-            #adiciona cada palavras e seu respectivo braile à variável
-    for palavra in dicionario_palavras['palavras']:
-        lista_arduino += "," + formata_palavra_braile(palavra, escrever_braile(unidecode(palavra))) + "\n"
-        
-            #envia sinal para o arduino
     meu_serial.write(lista_arduino.encode("UTF-8"))
-    print(lista_arduino)
+            #envia para o arduino
+    for palavra in dicionario_palavras['palavras']:
+        lista_arduino = formata_palavra_braile(palavra, escrever_braile(unidecode(palavra))) + "\n"
+        meu_serial.write(lista_arduino.encode("UTF-8"))
+        print(lista_arduino)
+        sleep(2.0)
     
         #Fotografar
 def fotografar():
@@ -190,8 +205,6 @@ def fotografar():
     imagem = Image.fromarray(video_tratado) 
     nome_arquivo_foto = datetime.now().strftime('Foto_teste_%d_%m_%y__%H_%M_%S.jpg')    
     imagem.save("Fotos/"+nome_arquivo_foto)
-
-#     tirar_foto(nome = data_foto,sistema_operacional = sistema_operacional)
     
     print("Tirei foto!")
 
@@ -250,11 +263,11 @@ def envia_foto():
     #Posicionar botões
         #Fotografar
 botao_fotografar = tk.Button(janela, text = "Fotografar",font = ('arial',8), command = fotografar)
-botao_fotografar.place(x = 453, y = 23)
+botao_fotografar.place(x = 453, y = 34)
 
         #Enviar
 botao_upload = tk.Button(janela, text = "Enviar", command = envia_foto, state = 'disabled')
-botao_upload.place(x = 462, y = 51)
+botao_upload.place(x = 462, y = 69)
 
         #Adicionar
 botao_adicionar = tk.Button(janela, text = "Adicionar", command = adiciona_palavra_lista)
@@ -266,15 +279,15 @@ entrada_nova_palavra.place(x = 427, y = 205)
 
         #Traduzir
 botao_traduzir = tk.Button(janela, text = "Traduzir", command = traduzir_palavra_lista)
-botao_traduzir.place(x = 565, y = 245)
+botao_traduzir.place(x = 549, y = 245)
 
         #Deletar
 botao_traduzir = tk.Button(janela, text = "Deletar", command = deletar_palavra_lista)
-botao_traduzir.place(x = 625, y = 245)
+botao_traduzir.place(x = 607, y = 245)
 
         #Salvar
 botao_salvar = tk.Button(janela, text = "Salvar", command = envia_lista_arduino)
-botao_salvar.place(x = 462, y = 80)
+botao_salvar.place(x = 660, y = 245)
 
 #Braile
     #Desenho da estrutura do braile
@@ -385,4 +398,4 @@ while True:
 stream.release()
 cv.destroyAllWindows()
 
-janela.tk.mainloop()
+#janela.tk.mainloop()
