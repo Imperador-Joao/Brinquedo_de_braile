@@ -186,7 +186,7 @@ def envia_foto():
     braile = escrever_braile(unidecode(palavra_traduzida))
     
             #exibe palavra traduzida
-    etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey80')
+    etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey80', width = 16, justify = tk.CENTER)
     etiqueta_palavra.place(x = 515, y = 178)
             
             #envia para o arduino
@@ -291,11 +291,11 @@ botao_upload.place(x = 539, y = 51)
 
         #Adicionar
 botao_adicionar = tk.Button(janela, text = "Adicionar", command = adiciona_palavra_lista)
-botao_adicionar.place(x = 545, y = 235)
+botao_adicionar.place(x = 545, y = 240)
 
             #Entrada de texto
 entrada_nova_palavra = tk.Entry(janela, width = 20)
-entrada_nova_palavra.place(x = 514, y = 205)
+entrada_nova_palavra.place(x = 514, y = 215)
 
         #Traduzir
 botao_traduzir = tk.Button(janela, text = "Traduzir", command = traduzir_palavra_lista)
