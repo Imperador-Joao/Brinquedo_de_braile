@@ -2,7 +2,7 @@
 
 //Premissa inicial
 //montagem de dois servos + programa em Arduino que recebe código braile pela serial e gira servos de acordo
-
+#include <EEPROM.h>
 #include <Servo.h>
 #include <GFButton.h>
 #include <LinkedList.h>
@@ -22,8 +22,8 @@ struct servoPos
 
 struct sorteioPalavras
 {
-  String palavra;
-  String braile;
+  char palavra[21];
+  char braile[150];
 };
 
 servoPos servoPos1;
@@ -37,7 +37,7 @@ servoPos servoPos8;
 
 servoPos listaDeServos[] = {servoPos1, servoPos2, servoPos3, servoPos4, servoPos5, servoPos6, servoPos7, servoPos8};
 //20 palavras
-sorteioPalavras *listaDeSorteios; /*= 
+sorteioPalavras *listaDeSorteios = {}; /*=
   {
   {"Batata", "110000,100000,011110,100000,011110,100000"},
   {"TV", "011110,111001"},
@@ -69,17 +69,17 @@ int saveRng = 0;
 unsigned long instanteAnterior = 0;
 
 //the time we give the sensor to calibrate (10-60 secs according to the datasheet)
-int calibrationTime = 30;        
+int calibrationTime = 30;
 
 //the time when the sensor outputs a low impulse
-long unsigned int lowIn;         
+long unsigned int lowIn;
 
-//the amount of milliseconds the sensor has to be low 
+//the amount of milliseconds the sensor has to be low
 //before we assume all motion has stopped
-long unsigned int pause = 5000;  
+long unsigned int pause = 5000;
 
 boolean lockLow = true;
-boolean takeLowTime;  
+boolean takeLowTime;
 
 int pirPin = 3;    //the digital pin connected to the PIR sensor's output
 int ledPin = 13;
@@ -90,25 +90,40 @@ bool eFoto = false;
 int posicaoLista = 0;
 int qtd_palavras = 0;
 
-void setup() 
+void setup()
 {
   // Inicializando a comunicacao serial.
-  Serial.begin(9600);
-  Serial1.begin(115200);
-
+  Serial.begin(115200);
+  //EEPROM.put(0,0);
+  EEPROM.get(0, qtd_palavras);
+  Serial.println(qtd_palavras);
+  
+  if (qtd_palavras > 0)
+  {
+    listaDeSorteios = (sorteioPalavras*)malloc(sizeof(sorteioPalavras) * qtd_palavras);
+    for (int j = 0; j < qtd_palavras; j++)
+    {
+      EEPROM.get(2 + (j * sizeof(sorteioPalavras)), listaDeSorteios[j]);
+    }
+    for (int j = 0; j < qtd_palavras; j++)
+    {
+      Serial.println(listaDeSorteios[j].palavra);
+       Serial.println(listaDeSorteios[j].braile);
+    }
+  }
   randomSeed(analogRead(A0)); // Inicializa elemento aleatório
   botao1.setReleaseHandler(sorteia);
   // Parametros
   // [0] = pino ; [1] = comprimento minimo do pulso PWM (corresponde a 0 graus); [2] = comprimento maximo do pulso PWM (corresponde a 180 graus)
   for (i = 0; i < 8 ; i++) //Inicializa todos os 8 servos
   {
-     listaDeServos[i].servoVar.attach(4+i);
-     Serial.println(i);
+    listaDeServos[i].servoVar.attach(5 + i);
+    //Serial.println(i);
   }
-  pinMode(pirPin, INPUT);
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(pirPin, LOW);
-  Serial.print("calibrating sensor ");
+  /*pinMode(pirPin, INPUT);
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(pirPin, LOW);
+    Serial.print("calibrating sensor ");*/
 }
 
 int binToDec(String binario)
@@ -140,9 +155,9 @@ void movimentaServo(int indiceServo)
   Serial.println(valor);
   //listaDeServoPos[indiceServo].posAtual = posicao;
   int posicaoGraus = 0;
-   if (indiceServo%2==0)
+  if (indiceServo % 2 == 0)
   {
-     posicaoGraus = 180 - (valor * 25.714);
+    posicaoGraus = 180 - (valor * 25.714);
   }
   else
   {
@@ -155,29 +170,32 @@ void movimentaServo(int indiceServo)
 }
 
 void sorteia(GFButton &botao1)
-{
-  int randomNumber = random(19);
-  //Serial.println(listaDeSorteios[randomNumber].palavra);
-  String message = "Braile " + listaDeSorteios[randomNumber].braile;
-  Serial.println(message);
-}
+  {
+    int randomNumber = random(qtd_palavras);
+    Serial.println(qtd_palavras);
+    Serial.println(randomNumber);
+    Serial.println(listaDeSorteios[randomNumber].palavra);
+    String message = String("Braile ") + String(listaDeSorteios[randomNumber].braile);
+    Serial.println(message);
+    leituraDeComando((String)listaDeSorteios[randomNumber].braile);
+  }
 
 
 
 void leituraDeComando(String texto)
 {
-  braileStart = 7;  //Indice inicial da sequencia Braile
+  braileStart = 0;  //Indice inicial da sequencia Braile
   braileTag = 1;    //braileTag representa o par de motores que compõe o caracter Braile
   int indiceServo1 = 0;
   int indiceServo2 = 0;
-  int quantidadeDeLoops = (texto.length()-7)/6;
+  int quantidadeDeLoops = (texto.length()) / 6;
   Serial.println(quantidadeDeLoops);
   for (i = 0; i < quantidadeDeLoops ; i++)
-  { 
-    //&& (millis() - instanteAnterior) > 5000)                                    
+  {
+    //&& (millis() - instanteAnterior) > 5000)
     //Através das funcoes abaixo é possível correlacionar o indice da lista de servos com a braileTag
-    indiceServo1 = (2*(braileTag - 1)); // 2*(1-1) = 0; 2*(2-1) = 2; 2*(3-1) = 4; 2*(4-1) = 6
-    indiceServo2 = ((2*braileTag) - 1); // (2*1)-1 = 1; (2*2)-1 = 3; (2*3)-1 = 5; (2*4)-1 = 7
+    indiceServo1 = (2 * (braileTag - 1)); // 2*(1-1) = 0; 2*(2-1) = 2; 2*(3-1) = 4; 2*(4-1) = 6
+    indiceServo2 = ((2 * braileTag) - 1); // (2*1)-1 = 1; (2*2)-1 = 3; (2*3)-1 = 5; (2*4)-1 = 7
     listaDeServos[indiceServo1].posDes = texto.substring(braileStart, braileStart + 3);
     listaDeServos[indiceServo2].posDes = texto.substring(braileStart + 3, braileStart + 6);
 
@@ -187,13 +205,13 @@ void leituraDeComando(String texto)
     Serial.print(",Servo 2 :");
     Serial.println(listaDeServos[indiceServo2].posDes);
 
-    movimentaServo(indiceServo1);     
-    movimentaServo(indiceServo2);                   
-      
+    movimentaServo(indiceServo1);
+    movimentaServo(indiceServo2);
+
     if (texto.charAt(braileStart + 6) == ',')                   //Exemplo: chegou no caracter 8 -> braileTag = 2
-    { 
-      Serial.println(texto.charAt(braileStart+6));
-      braileStart = braileStart + (6+1);                   // Captura o digito logo após a virgula. Exemplo: Braile 001001,001001 CAPTUROU O '0'
+    {
+      Serial.println(texto.charAt(braileStart + 6));
+      braileStart = braileStart + (6 + 1);                 // Captura o digito logo após a virgula. Exemplo: Braile 001001,001001 CAPTUROU O '0'
       if (braileTag == 4)
       {
         //sensorDeMovimento();
@@ -209,12 +227,13 @@ void leituraDeComando(String texto)
   }
 }
 
-void loop() 
+
+void loop()
 {
   botao1.process();
-  if (Serial1.available() > 0)
-  { 
-    String texto = Serial1.readStringUntil('\n');
+  if (Serial.available() > 0)
+  {
+    String texto = Serial.readStringUntil('\n');
     texto.trim();
 
     //Codificao Braile -> 1 = * e 0 = -
@@ -223,52 +242,75 @@ void loop()
     //Primeiro Exemplo de Serial recebido: 1001001 -> O primeiro digito informa qual dos caracter braile do mecanismo deve representar, os seguintes 6 digitos as duas colunas que devem ser combinadas
     //Segundo Exemplo de Serial recebido: 3011101 -> Informação para o 3o caracter Braile -> _ * * * _ *
 
-/*
-Identifica string recebida
-  primeiro vai receber "foto" ou "lista,num"
-  vai verificar se as flags estão ativas(não de veriam estar), depois detecta na texto se é foto ou lista e torna ativa a sua respectiva flag
+    /*
+      Identifica string recebida
+      primeiro vai receber "foto" ou "lista,num"
+      vai verificar se as flags estão ativas(não de veriam estar), depois detecta na texto se é foto ou lista e torna ativa a sua respectiva flag
 
-  segundo vai receber uma palavra seguida do seu braile, a unica respectiva à foto e a primeira respecvica à lista
-  então vai entrar no seu respectivo if
-*/
+      segundo vai receber uma palavra seguida do seu braile, a unica respectiva à foto e a primeira respecvica à lista
+      então vai entrar no seu respectivo if
+    */
     if (eFoto)
     {
-      String palavra = texto.substring(1,indexVirgula-1);
-      leituraDeComando(texto);
+      //foto\n'abcte','000111,000101,010100'
+      int indexVirgula_foto = texto.indexOf(",");
+      String palavra_foto = texto.substring(1, indexVirgula_foto - 1);
+      texto = texto.substring(indexVirgula_foto);
+      String braile_foto = texto.substring(2, texto.indexOf("',")); // mudar para 3 se tiver ,
+      Serial.print("Palavra foto:");
+      Serial.println(palavra_foto);
+      Serial.print("Braile foto:");
+      Serial.println(braile_foto);
+      leituraDeComando(braile_foto);
       eFoto = false;
     }
 
     if (eLista)
     {
+      /*
+        lista,3
+        ,'chave','100100,110010,100000,111001,100010'
+        ,'bala','110000,100000,111000,100000'
+        ,'micro','101100,010100,100100,111010,101010'
+      */
+      /*lista,3 ,'chave','100100,110010,100000,111001,100010' ,'bala','110000,100000,111000,100000' ,'micro','101100,010100,100100,111010,101010'*/
       if (posicaoLista < qtd_palavras)
       {
-        int indexVirgula = texto.indexOf(",");
-        listaDeSorteios[posicaoLista].palavra = texto.substring(1,indexVirgula-1);
-        texto = texto.substring(indexVirgula);
-        listaDeSorteios[posicaoLista].braile = texto.substring(2,texto.indexOf("',"));
+        int indexVirgula_lista = texto.indexOf("',");
+        strcpy(listaDeSorteios[posicaoLista].palavra, texto.substring(1, indexVirgula_lista).c_str());
+        texto = texto.substring(indexVirgula_lista + 2);
+        
+        strcpy(listaDeSorteios[posicaoLista].braile, texto.substring(1, texto.lastIndexOf("'")).c_str());
+        Serial.print("Palavra lista:");
+        Serial.println(listaDeSorteios[posicaoLista].palavra);
+        Serial.print("Braile lista:");
+        Serial.println((String)listaDeSorteios[posicaoLista].braile);
         posicaoLista++;
+
+        EEPROM.put(0, posicaoLista);
+        for (int i = 0; i < posicaoLista; i++)
+        {
+          EEPROM.put(2 + (i * sizeof(sorteioPalavras)), listaDeSorteios[i]);
+        }
       }
-      
+
       else
       {
         eLista = false;
         posicaoLista = 0;
       }
     }
-   
+
     if (texto.startsWith("foto")) eFoto = true;
-    
+
     if (texto.startsWith("lista"))
     {
-      qtd_palavras = texto.substring(6,7).toInt();
-      listaDeSorteios = (sorteioPalavras*)malloc(sizeof(sorteioPalavras)*qtd_palavras);
+      EEPROM.put(0,0);
+      if (listaDeSorteios != NULL) free(listaDeSorteios);
+      
+      qtd_palavras = texto.substring(6, 7).toInt();
+      listaDeSorteios = (sorteioPalavras*)malloc(sizeof(sorteioPalavras) * qtd_palavras);
       eLista = true;
     }
-    
-    /*if (texto.startsWith("start"))
-    {
-      Serial.println("startando");
-      movimentaServo(0);
-    }*/
   }
 }
