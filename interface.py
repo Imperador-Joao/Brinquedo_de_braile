@@ -89,7 +89,7 @@ janela.title("Reconhecedor Braile")
 janela.geometry("908x376")
 
     #Icone
-icone = ImageTk.PhotoImage(Image.open('Fotos/Icone.png'))
+icone = ImageTk.PhotoImage(Image.open('Fotos/icone/Icone.png'))
 janela.wm_iconphoto(False, icone)
 
 #Janelas
