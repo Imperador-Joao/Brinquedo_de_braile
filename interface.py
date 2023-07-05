@@ -58,7 +58,7 @@ def monitorar_serial():
         sleep(0.1)
 
 #Inicia serial
-meu_serial = Serial("COM22", baudrate = 115200, timeout = 0.1)
+meu_serial = Serial("COM1", baudrate = 115200, timeout = 0.1)
 
 thread = Thread(target = monitorar_serial)
 thread.daemon = True
@@ -85,34 +85,43 @@ except IOError:
 
 #Criação da janela
 janela = tk.Tk()
-janela.title("Interface")
+janela.title("Reconhecedor Braile")
 janela.geometry("908x376")
+
+    #Icone
+icone = ImageTk.PhotoImage(Image.open('Fotos/Icone.png'))
+janela.wm_iconphoto(False, icone)
 
 #Janelas
     #Foto
 painel_foto_externo = tk.Label(janela, background = "black", width = 57, height = 17)
-painel_foto_externo.place(x = 12, y = 17)
+painel_foto_externo.place(x = 100, y = 17)
 painel_foto_interno = tk.Label(janela, width = 54, height = 14)
-painel_foto_interno.place(x = 15, y = 20)
+painel_foto_interno.place(x = 103, y = 20)
 
     #Estato
-janela_estato_externo = tk.Canvas(janela, background = "black", width = 123, height = 160)
-janela_estato_externo.place(x = 420, y = 116)
-janela_estato_interno = tk.Canvas(janela, background = "grey93", width = 113, height = 150)
-janela_estato_interno.place(x = 425, y = 121)
+janela_estato_externo = tk.Canvas(janela, background = "black", width = 131, height = 160)
+janela_estato_externo.place(x = 508, y = 116)
+janela_estato_interno = tk.Canvas(janela, background = "grey93", width = 121, height = 150)
+janela_estato_interno.place(x = 513, y = 121)
 
-janela_estato_interno.create_text(55, 35, text = "Palavra:", font = 1)
+janela_estato_interno.create_text(55, 45, text = "Palavra:", font = 1)
 estado_atual_palavra = tk.Label(janela, background = "grey93", text = "Fotografe!", font = 1)
-estado_atual_palavra.place(x = 440, y = 123)
+estado_atual_palavra.place(x = 528, y = 123)
 
-etiqueta_palavra = tk.Label(janela, text = "", bg = 'grey93')
-etiqueta_palavra.place(x = 455, y = 170)
+etiqueta_palavra = tk.Label(janela, text = "", bg = 'grey80', width = 16)
+etiqueta_palavra.place(x = 516, y = 178)
 
     #Botões
-janela_botoes_interno = tk.Canvas(janela, background = "black", width = 123, height = 95)
-janela_botoes_interno.place(x = 420, y = 15)
-janela_botoes_externo = tk.Canvas(janela, background = "grey93", width = 113, height = 85)
-janela_botoes_externo.place(x = 425, y = 20)
+janela_botoes_interno = tk.Canvas(janela, background = "black", width = 131, height = 95)
+janela_botoes_interno.place(x = 508, y = 15)
+janela_botoes_externo = tk.Canvas(janela, background = "grey93", width = 121, height = 85)
+janela_botoes_externo.place(x = 513, y = 20)
+        #Listbox
+janela_botoes_interno = tk.Canvas(janela, background = "black", width = 163, height = 44)
+janela_botoes_interno.place(x = 643, y = 232)
+janela_botoes_externo = tk.Canvas(janela, background = "grey93", width = 153, height = 34)
+janela_botoes_externo.place(x = 648, y = 237)
 
     #Braile
 janela_braile_externo = tk.Canvas(janela, background = "black", width = 885, height = 76)
@@ -121,12 +130,13 @@ janela_braile_interno = tk.Canvas(janela, background = "grey93", width = 875, he
 janela_braile_interno.place(x = 15, y = 287)
 
     #Listbox
-lb_palavras = tk.Listbox(janela, bd = 4, width = 24, height = 13, justify = tk.CENTER)
+lb_palavras = tk.Listbox(janela, bd = 4, width = 26, height = 13, justify = tk.CENTER)
+
 
 for palavra in dicionario_palavras['palavras']:
     lb_palavras.insert(tk.END, palavra)
     
-lb_palavras.place(x = 548, y = 16)
+lb_palavras.place(x = 644, y = 16)
 
 #Botões
     #Funções
@@ -212,8 +222,8 @@ def fotografar():
     botao_upload['state'] = tk.NORMAL
     
             #altera palavra estado atual
-    estado_atual_palavra.config(text = "Envie!")
-    estado_atual_palavra.place(x = 455, y = 123)
+    estado_atual_palavra.config(text = "Reconheça!")
+    estado_atual_palavra.place(x = 526, y = 123)
     
     etiqueta_palavra.config(text = "")
     
@@ -237,14 +247,14 @@ def envia_foto():
     
             #traduz palavra
                 #en -> pt-br
-    palavra_traduzida = traduzir(texto=palavra_maior_confianca)
+    palavra_traduzida = traduzir(texto = palavra_maior_confianca)
     
                 #pt-br -> braile
     braile = escrever_braile(unidecode(palavra_traduzida))
     
             #exibe palavra traduzida
-    etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey93')
-    etiqueta_palavra.place(x = 435, y = 165)
+    etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey80')
+    etiqueta_palavra.place(x = 515, y = 178)
             
             #envia para o arduino
     palavra_arduino = "foto,\n" + formata_palavra_braile(unidecode(palavra_traduzida), braile)
@@ -255,7 +265,7 @@ def envia_foto():
     
             #altera estado atual
     estado_atual_palavra.config(text = "Fotografe!")
-    estado_atual_palavra.place(x = 440, y = 123)
+    estado_atual_palavra.place(x = 528, y = 123)
     
             #desativa botão de upload
     botao_upload['state'] = tk.DISABLED
@@ -263,31 +273,31 @@ def envia_foto():
     #Posicionar botões
         #Fotografar
 botao_fotografar = tk.Button(janela, text = "Fotografar",font = ('arial',8), command = fotografar)
-botao_fotografar.place(x = 453, y = 34)
+botao_fotografar.place(x = 546, y = 34)
 
-        #Enviar
-botao_upload = tk.Button(janela, text = "Enviar", command = envia_foto, state = 'disabled')
-botao_upload.place(x = 462, y = 69)
+        #Reconhecer
+botao_upload = tk.Button(janela, text = "Reconhecer", command = envia_foto, state = 'disabled')
+botao_upload.place(x = 539, y = 69)
 
         #Adicionar
 botao_adicionar = tk.Button(janela, text = "Adicionar", command = adiciona_palavra_lista)
-botao_adicionar.place(x = 453, y = 230)
+botao_adicionar.place(x = 545, y = 235)
 
             #Entrada de texto
-entrada_nova_palavra = tk.Entry(janela, width = 18)
-entrada_nova_palavra.place(x = 427, y = 205)
+entrada_nova_palavra = tk.Entry(janela, width = 20)
+entrada_nova_palavra.place(x = 514, y = 205)
 
         #Traduzir
 botao_traduzir = tk.Button(janela, text = "Traduzir", command = traduzir_palavra_lista)
-botao_traduzir.place(x = 549, y = 245)
+botao_traduzir.place(x = 650, y = 243)
 
         #Deletar
 botao_traduzir = tk.Button(janela, text = "Deletar", command = deletar_palavra_lista)
-botao_traduzir.place(x = 607, y = 245)
+botao_traduzir.place(x = 708, y = 243)
 
         #Salvar
 botao_salvar = tk.Button(janela, text = "Salvar", command = envia_lista_arduino)
-botao_salvar.place(x = 660, y = 245)
+botao_salvar.place(x = 761, y = 243)
 
 #Braile
     #Desenho da estrutura do braile
