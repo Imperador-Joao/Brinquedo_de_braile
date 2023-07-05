@@ -140,6 +140,69 @@ lb_palavras.place(x = 644, y = 16)
 
 #Botões
     #Funções
+        #Fotografar
+def fotografar():
+    global imagem, nome_arquivo_foto, etiqueta_palavra
+    
+            #tira foto
+    imagem = Image.fromarray(video_tratado) 
+    nome_arquivo_foto = datetime.now().strftime('Foto_teste_%d_%m_%y__%H_%M_%S.jpg')    
+    imagem.save("Fotos/"+nome_arquivo_foto)
+    
+    print("Tirei foto!")
+
+            #ativa botão de upload
+    botao_upload['state'] = tk.NORMAL
+    
+            #altera palavra estado atual
+    estado_atual_palavra.config(text = "Reconheça!")
+    estado_atual_palavra.place(x = 526, y = 123)
+    
+    etiqueta_palavra.config(text = "")
+    
+    desenha_braile()
+
+        #Upload
+def envia_foto():
+    global meu_serial, nome_arquivo_foto, braile, palavra_traduzida, estado_atual_palavra, etiqueta_palavra
+    print("Enviando para a IA")
+    
+            #enviar foto para o identificador da amazon
+    detector_amazon = Detector_aws(senha = senha, chave = chave)
+    with open("Fotos/"+nome_arquivo_foto,'rb') as imagem_fonte:
+        bytes_fonte = imagem_fonte.read()
+    
+            #recebe itens detectados
+    itens_detectados = detector_amazon.receber_dados(bytes_imagem = bytes_fonte, etiquetas = 8).get('Labels')
+
+            #separa palavra com maior confiança
+    palavra_maior_confianca = itens_detectados[0].get('Name')
+    
+            #traduz palavra
+                #en -> pt-br
+    palavra_traduzida = traduzir(texto = palavra_maior_confianca)
+    
+                #pt-br -> braile
+    braile = escrever_braile(unidecode(palavra_traduzida))
+    
+            #exibe palavra traduzida
+    etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey80')
+    etiqueta_palavra.place(x = 515, y = 178)
+            
+            #envia para o arduino
+    palavra_arduino = "foto,\n" + formata_palavra_braile(unidecode(palavra_traduzida), braile)
+    meu_serial.write(palavra_arduino.encode("UTF-8"))
+    
+            #exibe brile
+    preeche_braile()
+    
+            #altera estado atual
+    estado_atual_palavra.config(text = "Fotografe!")
+    estado_atual_palavra.place(x = 528, y = 123)
+    
+            #desativa botão de upload
+    botao_upload['state'] = tk.DISABLED
+
         #Adiciona palavra na lista
 def adiciona_palavra_lista():
     global dicionario_palavras
@@ -206,78 +269,25 @@ def envia_lista_arduino():
         meu_serial.write(lista_arduino.encode("UTF-8"))
         print(lista_arduino)
         sleep(2.0)
-    
-        #Fotografar
-def fotografar():
-    global imagem, nome_arquivo_foto, etiqueta_palavra
-    
-            #tira foto
-    imagem = Image.fromarray(video_tratado) 
-    nome_arquivo_foto = datetime.now().strftime('Foto_teste_%d_%m_%y__%H_%M_%S.jpg')    
-    imagem.save("Fotos/"+nome_arquivo_foto)
-    
-    print("Tirei foto!")
 
-            #ativa botão de upload
-    botao_upload['state'] = tk.NORMAL
+        #Envia sinal para zerar posição dos servos
+def reset_config_servo():
+#     calibrar = "calibrate\n"
+    meu_serial.write("calibrate\n".encode("UTF-8"))
     
-            #altera palavra estado atual
-    estado_atual_palavra.config(text = "Reconheça!")
-    estado_atual_palavra.place(x = 526, y = 123)
+        #Envia sinal para zerar a eprom
+def reset_eprom():
+#     limpar = "limpa\n"
+    meu_serial.write("limpa\n".encode("UTF-8"))
     
-    etiqueta_palavra.config(text = "")
-    
-    desenha_braile()
-
-        #Upload
-def envia_foto():
-    global meu_serial, nome_arquivo_foto, braile, palavra_traduzida, estado_atual_palavra, etiqueta_palavra
-    print("Enviando para a IA")
-    
-            #enviar foto para o identificador da amazon
-    detector_amazon = Detector_aws(senha = senha, chave = chave)
-    with open("Fotos/"+nome_arquivo_foto,'rb') as imagem_fonte:
-        bytes_fonte = imagem_fonte.read()
-    
-            #recebe itens detectados
-    itens_detectados = detector_amazon.receber_dados(bytes_imagem = bytes_fonte, etiquetas = 8).get('Labels')
-
-            #separa palavra com maior confiança
-    palavra_maior_confianca = itens_detectados[0].get('Name')
-    
-            #traduz palavra
-                #en -> pt-br
-    palavra_traduzida = traduzir(texto = palavra_maior_confianca)
-    
-                #pt-br -> braile
-    braile = escrever_braile(unidecode(palavra_traduzida))
-    
-            #exibe palavra traduzida
-    etiqueta_palavra = tk.Label(janela, text = palavra_traduzida, bg = 'grey80')
-    etiqueta_palavra.place(x = 515, y = 178)
-            
-            #envia para o arduino
-    palavra_arduino = "foto,\n" + formata_palavra_braile(unidecode(palavra_traduzida), braile)
-    meu_serial.write(palavra_arduino.encode("UTF-8"))
-    
-            #exibe brile
-    preeche_braile()
-    
-            #altera estado atual
-    estado_atual_palavra.config(text = "Fotografe!")
-    estado_atual_palavra.place(x = 528, y = 123)
-    
-            #desativa botão de upload
-    botao_upload['state'] = tk.DISABLED
-
     #Posicionar botões
         #Fotografar
 botao_fotografar = tk.Button(janela, text = "Fotografar",font = ('arial',8), command = fotografar)
-botao_fotografar.place(x = 546, y = 34)
+botao_fotografar.place(x = 546, y = 24)
 
         #Reconhecer
 botao_upload = tk.Button(janela, text = "Reconhecer", command = envia_foto, state = 'disabled')
-botao_upload.place(x = 539, y = 69)
+botao_upload.place(x = 539, y = 51)
 
         #Adicionar
 botao_adicionar = tk.Button(janela, text = "Adicionar", command = adiciona_palavra_lista)
@@ -298,6 +308,14 @@ botao_traduzir.place(x = 708, y = 243)
         #Salvar
 botao_salvar = tk.Button(janela, text = "Salvar", command = envia_lista_arduino)
 botao_salvar.place(x = 761, y = 243)
+
+        #Recalibrar
+botao_upload = tk.Button(janela, text = "Recalibrar", command = reset_config_servo)
+botao_upload.place(x = 515, y = 80)
+
+        #Zerar eprom
+botao_upload = tk.Button(janela, text = "0EPROM", command = reset_eprom)
+botao_upload.place(x = 580, y = 80)
 
 #Braile
     #Desenho da estrutura do braile
