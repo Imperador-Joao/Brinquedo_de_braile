@@ -58,7 +58,7 @@ def monitorar_serial():
         sleep(0.1)
 
 #Inicia serial
-meu_serial = Serial("COM1", baudrate = 115200, timeout = 0.1)
+meu_serial = Serial("COM22", baudrate = 115200, timeout = 0.1)
 
 thread = Thread(target = monitorar_serial)
 thread.daemon = True
@@ -107,7 +107,7 @@ janela_estato_interno.place(x = 513, y = 121)
 
 janela_estato_interno.create_text(55, 45, text = "Palavra:", font = 1)
 estado_atual_palavra = tk.Label(janela, background = "grey93", text = "Fotografe!", font = 1)
-estado_atual_palavra.place(x = 528, y = 123)
+estado_atual_palavra.place(x = 535, y = 123)
 
 etiqueta_palavra = tk.Label(janela, text = "", bg = 'grey80', width = 16)
 etiqueta_palavra.place(x = 516, y = 178)
@@ -156,7 +156,7 @@ def fotografar():
     
             #altera palavra estado atual
     estado_atual_palavra.config(text = "Reconheça!")
-    estado_atual_palavra.place(x = 526, y = 123)
+    estado_atual_palavra.place(x = 532, y = 123)
     
     etiqueta_palavra.config(text = "")
     
@@ -198,7 +198,7 @@ def envia_foto():
     
             #altera estado atual
     estado_atual_palavra.config(text = "Fotografe!")
-    estado_atual_palavra.place(x = 528, y = 123)
+    estado_atual_palavra.place(x = 535, y = 123)
     
             #desativa botão de upload
     botao_upload['state'] = tk.DISABLED
@@ -310,12 +310,12 @@ botao_salvar = tk.Button(janela, text = "Salvar", command = envia_lista_arduino)
 botao_salvar.place(x = 761, y = 243)
 
         #Recalibrar
-botao_upload = tk.Button(janela, text = "Recalibrar", command = reset_config_servo)
-botao_upload.place(x = 515, y = 80)
+botao_recalibrar = tk.Button(janela, text = "Recalibrar", command = reset_config_servo)
+botao_recalibrar.place(x = 515, y = 80)
 
         #Zerar eprom
-botao_upload = tk.Button(janela, text = "0EPROM", command = reset_eprom)
-botao_upload.place(x = 580, y = 80)
+botao_zerar = tk.Button(janela, text = "0EPROM", command = reset_eprom)
+botao_zerar.place(x = 580, y = 80)
 
 #Braile
     #Desenho da estrutura do braile
